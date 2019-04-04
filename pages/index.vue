@@ -49,7 +49,7 @@
       </div>
     </nav>
     <div class="flex flex-col bg-grey-lighter">
-      <div class="h-full" style="height: 100%;">
+      <div class="h-full" style="height: 100vh;">
         <no-ssr>
           <l-map :zoom="13" :center="[47.41322, -1.219482]">
             <l-tile-layer
