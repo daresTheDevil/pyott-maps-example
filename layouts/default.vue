@@ -1,7 +1,13 @@
 <template>
-  <div>
+  <v-app dark>
     <nuxt />
-  </div>
+  </v-app>
 </template>
 
-<style></style>
+<script>
+export default {
+  data() {
+    return {}
+  }
+}
+</script>

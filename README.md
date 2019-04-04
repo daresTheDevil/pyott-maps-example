@@ -1,6 +1,6 @@
 # pyott-maps-example
 
-> Leaflet/Nuxt conversation
+> Vuetify/Nuxt/Feathers conversation
 
 ## Build Setup
 
