@@ -1,15 +1,18 @@
 import Vue from 'vue'
-import Vuetify from 'vuetify/lib'
+import Vuetify from 'vuetify'
 import colors from 'vuetify/es5/util/colors'
+
+// import '@fortawesome/fontawesome-free/css/all.css'
+import '@mdi/font/css/materialdesignicons.css'
 
 Vue.use(Vuetify, {
   theme: {
-    primary: colors.blue.darken2,
-    accent: colors.grey.darken3,
-    secondary: colors.amber.darken3,
-    info: colors.teal.lighten1,
+    primary: colors.lightBlue.darken4,
+    accent: colors.deepPurple.darken2,
+    secondary: colors.lightBlue.darken3,
+    info: colors.lightBlue.base,
     warning: colors.amber.base,
-    error: colors.deepOrange.accent4,
-    success: colors.green.accent3
+    error: colors.red.darken1,
+    success: colors.green.darken2
   }
 })
