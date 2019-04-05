@@ -1,12 +1,15 @@
 <template>
   <div>
-    <v-toolbar color="deep-purple">
+    <v-toolbar color="deep-purple" style="z-index: 1;">
+      <v-btn v-if="$route.path !== '/'" icon @click="$router.go(-1)"
+        ><v-icon>arrow_back</v-icon>
+      </v-btn>
       <v-toolbar-title>Pyott Maps</v-toolbar-title>
     </v-toolbar>
     <v-container fluid class="pa-0" fill-height>
       <v-layout row fill-height>
         <v-flex>
-          <div id="map-wrap" style="height: 93vh">
+          <div id="map-wrap" style="height: 93vh; z-index: 0;">
             <no-ssr>
               <l-map :zoom="13" :center="[47.41322, -1.219482]">
                 <l-tile-layer
