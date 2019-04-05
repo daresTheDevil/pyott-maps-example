@@ -10,9 +10,12 @@
         </v-list-tile>
       </v-list>
     </v-navigation-drawer>
-    <v-toolbar color="deep-purple">
+    <v-toolbar color="deep-purple" fixed>
       <v-toolbar-side-icon @click="drawer = !drawer" />
-      <v-btn v-if="$route.path !== '/'" icon @click="$router.go(-1)"
+      <v-btn
+        v-if="$route.path !== '/' && $vuetify.breakpoint.xsAndUp"
+        icon
+        @click="$router.go(-1)"
         ><v-icon>arrow_back</v-icon>
       </v-btn>
       <v-toolbar-title>Pyott Maps</v-toolbar-title>
