@@ -94,7 +94,15 @@
 <script>
 export default {
   data() {
-    return {}
+    return {
+      links: [
+        {
+          text: 'Maps',
+          icon: 'mdi-map-marker',
+          to: '/map'
+        }
+      ]
+    }
   }
 }
 </script>

@@ -2,8 +2,8 @@
   <v-app>
     <v-dialog
       v-model="dialog"
-      fullscreen
-      hide-overlay
+      :fullscreen="$vuetify.breakpoint.mdAndDown"
+      max-width="500"
       transition="dialog-bottom-transition"
     >
       <v-card>
@@ -15,7 +15,7 @@
             v-model="search"
             solo-inverted
             flat
-            color="primary"
+            autofocus
             type="text"
             clearable
             placeholder="Being searching here..."
@@ -26,19 +26,25 @@
         </v-toolbar>
 
         <v-fade-transition v-model="selected" group tag="v-list">
-          <v-list-tile v-for="item in entities" :key="item.entityDisplayName">
+          <v-list-tile v-for="(item, i) in results" :key="i">
             <v-list-tile-avatar color="teal lighten-4">{{
               item.entityGrade
             }}</v-list-tile-avatar>
-            <v-list-tile-title v-text="item.entityDisplayName" />
+            <v-list-tile-content>
+              <h1 class="subheading" v-text="item.entityDisplayName" />
+            </v-list-tile-content>
+            <v-list-tile-action>
+              <v-btn flat icon><v-icon>mdi-arrow-right</v-icon></v-btn>
+            </v-list-tile-action>
           </v-list-tile>
+          <v-divider />
         </v-fade-transition>
       </v-card>
     </v-dialog>
     <v-sheet tile color="primary">
       <v-container grid-list-md>
-        <v-layout row wrap>
-          <v-flex xs12 md6>
+        <v-layout row wrap justify-center>
+          <v-flex shrink>
             <h1 class="display-1 text-xs-center font-weight-bold white--text">
               Mississippi Succeeds Report Card
             </h1>
@@ -69,12 +75,30 @@ export default {
     return {
       entities,
       showToolbar: true,
-      dialog: false
+      dialog: false,
+      results: [],
+      search: '',
+      selected: []
     }
   },
   computed: {},
   mounted() {},
-  methods: {}
+  methods: {
+    onChange() {
+      this.filterResults()
+    },
+    filterResults() {
+      this.results = this.entities.filter(
+        item =>
+          item.entityDisplayName
+            .toLowerCase()
+            .indexOf(this.search.toLowerCase()) > -1 ||
+          item.entityCity.toLowerCase().indexOf(this.search.toLowerCase()) >
+            -1 ||
+          item.entityId.toLowerCase().indexOf(this.search.toLowerCase()) > -1
+      )
+    }
+  }
 }
 </script>
 
