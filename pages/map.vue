@@ -73,6 +73,13 @@
             :key="s"
             :lat-lng="[school.geometry.y, school.geometry.x]"
           >
+            <l-icon :icon-anchor="staticAnchor">
+              <v-btn fab color="white">
+                <v-icon size="64" color="deep-purple"
+                  >mdi-alpha-a-circle</v-icon
+                >
+              </v-btn>
+            </l-icon>
             <l-popup width="400">
               <v-card flat color="transparent">
                 <v-card-title v-text="school.attributes.NAME" />
@@ -210,6 +217,7 @@ export default {
           this.selectedDistrict = feature.properties
           this.map.fitBounds(layer.getBounds())
           this.getMarkers(layer)
+          this.$refs.geojson.mapObject.setStyle(this.styleShadow)
           // eslint-disable-next-line vue/no-side-effects-in-computed-properties
           layer.setStyle({ fillColor: 'white', fillOpacity: 0 })
           // eslint-disable-next-line vue/no-side-effects-in-computed-properties
@@ -217,6 +225,15 @@ export default {
         })
         layer.on('mouseover', () => {})
         layer.on('mouseout', () => {})
+      }
+    },
+    styleShadow() {
+      return {
+        color: '#263238',
+        opacity: 0.7,
+        weight: 1,
+        fillColor: '#263238',
+        fillOpacity: 0.7
       }
     },
     styleFunction() {
