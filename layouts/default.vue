@@ -1,10 +1,16 @@
 <template>
   <v-app light>
+    <v-navigation-drawer v-model="drawer" app temporary style="z-index: 999;">
+      <v-list dense>
+        <v-list-tile to="/">
+          <v-list-tile-title>Home</v-list-tile-title>
+        </v-list-tile>
+        <v-list-tile to="/map">
+          <v-list-tile-title>Heat maps</v-list-tile-title>
+        </v-list-tile>
+      </v-list>
+    </v-navigation-drawer>
     <v-toolbar dark color="primary">
-      <v-toolbar-side-icon
-        v-if="$vuetify.breakpoint.smAndDown"
-        @click="drawer = !drawer"
-      />
       <a href="/">
         <img
           src="/images/mde-logo-light.svg"
@@ -24,13 +30,13 @@
         </div>
       </v-toolbar-title>
       <v-spacer />
-      <v-menu offset-y left>
+      <v-menu v-if="$vuetify.breakpoint.mdAndUp" offset-y left>
         <v-btn slot="activator" flat>
           Links
         </v-btn>
-        <v-list>
+        <v-list dense>
           <v-list-tile v-for="link in links" :key="link.text" :to="link.to">
-            <v-list-tile-avatar
+            <v-list-tile-avatar class="mx-0 px-0"
               ><v-icon>{{ link.icon }}</v-icon></v-list-tile-avatar
             >
             <v-list-tile-title v-text="link.text" />
@@ -84,6 +90,10 @@
           mdi-human
         </v-icon>
       </v-btn>
+      <v-toolbar-side-icon
+        v-if="$vuetify.breakpoint.mdAndDown"
+        @click="drawer = !drawer"
+      />
     </v-toolbar>
     <v-content>
       <nuxt />
@@ -95,7 +105,9 @@
 export default {
   data() {
     return {
+      drawer: false,
       links: [
+        { text: 'Home', icon: 'mdi-home', to: '/' },
         {
           text: 'Maps',
           icon: 'mdi-map-marker',

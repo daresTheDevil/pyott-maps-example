@@ -1,197 +1,367 @@
 <template>
   <v-app>
-    <v-bottom-sheet
-      v-if="$vuetify.breakpoint.mdAndDown"
-      v-model="sheet"
-      persistent
-      hide-overlay
-      style="z-index: 1999;"
+    <l-map
+      ref="map"
+      :options="mapOptions"
+      :zoom.sync="zoom"
+      :center.sync="center"
+      class="mapContainer"
     >
-      <v-card tile color="primary" dark>
-        <v-card-title>
-          <h1 class="subheading">{{ selectedDistrict.NAME }}</h1>
-        </v-card-title>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn flat>See report card<v-icon>mdi-chevron-right</v-icon></v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-bottom-sheet>
-    <v-sheet v-show="showToolbar" tile color="primary darken-1 white--text">
-      <v-container fluid class="pb-3 pt-2" grid-list-md>
-        <v-layout column>
-          <v-flex class="mx-auto">
-            <v-layout row align-center>
-              <v-btn icon color="primary lighten-1" dark @click="yearSelected--"
-                ><v-icon large>mdi-arrow-left</v-icon></v-btn
-              >
-              <h1 class="headline">{{ yearSelected }}</h1>
-              <v-btn color="primary lighten-1" dark icon @click="yearSelected++"
-                ><v-icon large>mdi-arrow-right</v-icon></v-btn
-              >
+      <l-control-zoom
+        v-if="$vuetify.breakpoint.mdAndUp"
+        position="topleft"
+      ></l-control-zoom>
+      <l-tile-layer :url="standardTiles"></l-tile-layer>
+      <l-geo-json
+        ref="geojson"
+        :geojson="districts"
+        :options="options"
+        :options-style="styleFunction"
+      />
+      <v-container
+        v-if="$vuetify.breakpoint.mdAndUp"
+        fill-height
+        fluid
+        grid-list-lg
+      >
+        <v-layout fill-height justify-end>
+          <v-flex xs3>
+            <v-layout column>
+              <v-flex xs3 class="my-1">
+                <v-card
+                  dark
+                  color="primary"
+                  class="overlayContainer elevation-10"
+                >
+                  <v-toolbar
+                    card
+                    dark
+                    color="primary"
+                    class="justify-space-between"
+                  >
+                    <v-btn
+                      :disabled="yearSelected === 0"
+                      icon
+                      @click="yearSelected--"
+                      ><v-icon>mdi-chevron-left</v-icon></v-btn
+                    >
+                    <v-tabs
+                      v-model="yearSelected"
+                      hide-slider
+                      color="primary"
+                      grow
+                      class="mx-2"
+                      active-class="primary lighten-1"
+                    >
+                      <v-tab v-for="year in years" :key="year">
+                        <h1 class="subheading white--text">{{ year }}</h1>
+                      </v-tab>
+                    </v-tabs>
+                    <v-btn
+                      icon
+                      :disabled="yearSelected === 1"
+                      @click="yearSelected++"
+                      ><v-icon>mdi-chevron-right</v-icon></v-btn
+                    >
+                  </v-toolbar>
+                  <v-card-text>
+                    <v-select
+                      hide-details
+                      solo-inverted
+                      :items="dataSets"
+                      flat
+                      item-text="name"
+                      item-value="value"
+                      label="Select dataset"
+                    />
+                  </v-card-text>
+                  <v-card-text class="pt-0">
+                    <v-btn
+                      block
+                      :disabled="!districtSelected"
+                      color="white"
+                      :light="districtSelected"
+                      depressed
+                      @click="resetMap"
+                      >Reset map</v-btn
+                    >
+                  </v-card-text>
+                </v-card>
+              </v-flex>
+              <v-slide-y-transition>
+                <v-flex v-if="districtSelected" xs3 class="my-1">
+                  <v-card
+                    dark
+                    color="primary"
+                    class="overlayContainer elevation-10"
+                  >
+                    <v-card-title class="title">{{
+                      selectedDistrict.NAME
+                    }}</v-card-title>
+                    <v-divider />
+                    <v-card-text>
+                      <v-list dense class="transparent">
+                        <v-list-tile
+                          v-for="item in markers"
+                          :key="item.attributes.OBJECTID"
+                        >
+                          <v-layout row justify-space-between align-center>
+                            <h1
+                              class="body-1 text-capitalize"
+                              v-text="item.attributes.NAME"
+                            />
+                            <v-btn flat icon
+                              ><v-icon>mdi-chevron-double-right</v-icon></v-btn
+                            >
+                          </v-layout>
+                        </v-list-tile>
+                      </v-list>
+                    </v-card-text>
+                  </v-card>
+                </v-flex>
+              </v-slide-y-transition>
             </v-layout>
-          </v-flex>
-          <v-flex class="mx-auto">
-            <v-select
-              v-model="dataSetSelected"
-              dark
-              solo-inverted
-              flat
-              hide-details
-              :items="dataSets"
-              append-outer-icon="mdi-reload"
-              @click:append-outer="resetMap"
-              @change="handleSelectionChange"
-            />
           </v-flex>
         </v-layout>
       </v-container>
-    </v-sheet>
-    <div style="height: 100%">
-      <l-map
-        ref="map"
-        :zoom.sync="zoom"
-        :center.sync="center"
-        style="z-index: 0;"
-        @update:zoom="handleZoom"
+      <l-marker-cluster
+        v-if="markers && zoom > 7"
+        ref="schools"
+        chunked-loading
       >
-        <l-tile-layer :url="lightTiles"></l-tile-layer>
-        <l-geo-json
-          ref="geojson"
-          :geojson="districts"
-          :options="options"
-          :options-style="styleFunction"
-        />
-
-        <l-marker-cluster
-          v-if="markers && zoom > 9"
-          ref="schools"
-          chunked-loading
+        <l-marker
+          v-for="(school, s) in markers"
+          :key="s"
+          :lat-lng="[school.geometry.y, school.geometry.x]"
+          @click="handleMarkerClick"
         >
-          <l-marker
-            v-for="(school, s) in markers"
-            :key="s"
-            :lat-lng="[school.geometry.y, school.geometry.x]"
+          <l-popup :options="markerOptions">
+            <v-card light flat color="transparent">
+              <v-card-title>
+                <h1 class="subheading text-capitalize">
+                  {{ school.attributes.NAME }}
+                </h1>
+              </v-card-title>
+              <v-card-actions>
+                <v-spacer />
+
+                <v-btn depressed class="text-capitalize" color="primary"
+                  >See report card</v-btn
+                >
+              </v-card-actions>
+            </v-card>
+          </l-popup>
+          <l-tooltip
+            v-if="$vuetify.breakpoint.mdAndUp"
+            :options="markerOptions"
           >
-            <l-icon :icon-anchor="staticAnchor">
-              <v-btn fab color="white">
-                <v-icon size="64" color="deep-purple"
-                  >mdi-alpha-a-circle</v-icon
-                >
-              </v-btn>
-            </l-icon>
-            <l-popup width="400">
-              <v-card flat color="transparent">
-                <v-card-title v-text="school.attributes.NAME" />
-                <v-divider />
-                <v-card-text>
-                  <h1 class="body-1">{{ school.attributes.LSTREE }}</h1>
-                  <h1 class="body-1 text-capitalize">
-                    {{ school.attributes.LCITY }}, MS
-                    {{ school.attributes.LZIP }}
-                  </h1>
-                </v-card-text>
-                <v-card-actions>
-                  <v-spacer />
-                  <v-btn flat color="primary"
-                    >See report card<v-icon>mdi-chevron-right</v-icon></v-btn
-                  >
-                </v-card-actions>
-              </v-card>
-            </l-popup>
-          </l-marker>
-        </l-marker-cluster>
-
-        <v-container
-          v-if="$vuetify.breakpoint.mdAndUp && zoom > 9"
-          grid-list-md
-          justify-end
-          fluid
-        >
-          <v-layout row justify-center>
-            <v-flex xs12 sm3>
-              <v-slide-y-transition>
-                <v-card
-                  v-if="lastClickLayer"
-                  dark
-                  color="primary"
-                  class="mapOver"
-                >
-                  <v-card-title>
-                    <h1 class="headline">{{ selectedDistrict.NAME }}</h1>
-                  </v-card-title>
-                  <v-card-actions class="justify-space-between">
-                    <span>{{ zoom }}</span>
-                    <span>{{ center }}</span>
-                  </v-card-actions>
-                </v-card>
-              </v-slide-y-transition>
-            </v-flex>
-          </v-layout>
-        </v-container>
-        <l-marker :lat-lng="[32.302181, -90.1847]"></l-marker>
-      </l-map>
-    </div>
+            <h1 class="subheading text-capitalize">
+              {{ school.attributes.NAME }}
+            </h1>
+            <br />
+            <div class="text-xs-right">
+              <v-btn flat color="primary"
+                >See report card<v-icon>mdi-chevron-double-right</v-icon></v-btn
+              >
+            </div>
+          </l-tooltip>
+        </l-marker>
+      </l-marker-cluster>
+      <v-snackbar
+        v-if="$vuetify.breakpoint.mdAndDown"
+        :value="districtSelected"
+        top
+        color="primary lighten-1"
+        :timeout="timeout"
+        absolute
+        class="overlayContainer"
+      >
+        <v-layout v-if="selectedDistrict" align-center justify-space-between>
+          <span>{{ selectedDistrict.NAME }}</span>
+          <v-btn icon><v-icon>mdi-chevron-double-right</v-icon></v-btn>
+        </v-layout>
+      </v-snackbar>
+    </l-map>
+    <v-footer
+      v-if="$vuetify.breakpoint.mdAndDown"
+      app
+      height="auto"
+      color="primary"
+    >
+      <v-layout column>
+        <v-flex>
+          <v-slide-y-transition>
+            <v-toolbar
+              v-if="menu === 2"
+              dense
+              flat
+              dark
+              color="primary lighten-1"
+              class="justify-space-between"
+            >
+              <v-btn :disabled="yearSelected === 0" icon @click="yearSelected--"
+                ><v-icon>mdi-chevron-left</v-icon></v-btn
+              >
+              <v-tabs
+                v-model="yearSelected"
+                hide-slider
+                color="transparent"
+                dark
+                grow
+                class="mx-2"
+                active-class="primary"
+              >
+                <v-tab v-for="year in years" :key="year">
+                  <h1 class="subheading">{{ year }}</h1>
+                </v-tab>
+              </v-tabs>
+              <v-btn icon :disabled="yearSelected === 1" @click="yearSelected++"
+                ><v-icon>mdi-chevron-right</v-icon></v-btn
+              >
+            </v-toolbar>
+          </v-slide-y-transition>
+        </v-flex>
+        <v-flex>
+          <v-toolbar dark flat color="transparent">
+            <v-btn icon @click="resetMap"><v-icon>mdi-refresh</v-icon></v-btn>
+            <v-tabs
+              v-model="menu"
+              color="transparent"
+              active-class="primary lighten-1"
+              grow
+              hide-slider
+            >
+              <v-tab>
+                Map
+              </v-tab>
+              <v-tab :disabled="!districtSelected">
+                Schools
+              </v-tab>
+              <v-tab>
+                Years
+              </v-tab>
+              <v-tab>
+                Data
+              </v-tab>
+            </v-tabs>
+          </v-toolbar>
+        </v-flex>
+      </v-layout>
+    </v-footer>
+    <v-dialog :value="menu === 3" fullscreen>
+      <v-card light>
+        <v-card-title class="py-1 px-0">
+          <v-btn icon flat @click="menu = 0"
+            ><v-icon>mdi-arrow-left</v-icon></v-btn
+          >
+          <span class="title font-weight-regular">Select data to view</span>
+        </v-card-title>
+        <v-divider />
+        <v-list>
+          <v-list-tile
+            v-for="item in dataSets"
+            :key="item.name"
+            class="my-2"
+            @click="handleDataSelect(item.value)"
+          >
+            <v-list-tile-content>
+              <v-list-tile-title v-text="item.name" />
+              <v-list-tile-sub-title v-text="item.description" />
+            </v-list-tile-content>
+          </v-list-tile>
+        </v-list>
+      </v-card>
+    </v-dialog>
+    <v-dialog :value="menu === 1" fullscreen>
+      <v-card light>
+        <v-card-title class="py-1 px-0">
+          <v-btn icon flat @click="menu = 0"
+            ><v-icon>mdi-arrow-left</v-icon></v-btn
+          >
+          <span class="title font-weight-regular">Schools</span>
+        </v-card-title>
+        <v-divider />
+        <v-list dense>
+          <v-list-tile v-for="item in markers" :key="item.attributes.OBJECTID">
+            <v-layout row justify-space-between align-center>
+              <h1 class="body-1" v-text="item.attributes.NAME" />
+              <v-btn flat icon><v-icon>mdi-chevron-double-right</v-icon></v-btn>
+            </v-layout>
+          </v-list-tile>
+        </v-list>
+      </v-card>
+    </v-dialog>
   </v-app>
 </template>
 
 <script>
-// import { mapGetters } from 'vuex'
-import 'leaflet/dist/leaflet.css'
-// import axios from 'axios'
-import districts from '@/assets/data/mde-districts-1516.json'
-import { features as schools } from '@/assets/data/mde-schools-1516.json'
-// import districts2017 from '@/assets/data/mde-districts-2017.json'
-// import districts2018 from '@/assets/data/mde-districts-2018.json'
+import districts1516 from '@/assets/data/mde-districts-1516.json'
+import { features as schools1516 } from '@/assets/data/mde-schools-1516.json'
+import districts1617 from '@/assets/data/mde-districts-1617.json'
+import { features as schools1617 } from '@/assets/data/mde-schools-1617.json'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import Vue2LeafletMarkerCluster from 'vue2-leaflet-markercluster'
 
 export default {
-  components: {
-    'l-marker-cluster': Vue2LeafletMarkerCluster
-  },
+  components: { 'l-marker-cluster': Vue2LeafletMarkerCluster },
   data() {
     return {
-      years: [2017, 2018],
-      // districts2017,
-      // districts2018,
-      districts,
-      schools,
-      standardTiles: 'http://{s}.tile.osm.org/{z}/{x}/{y}.png',
-      lightTiles:
-        'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
-      color: 'green',
-      selected: null,
-      removeClusters: true,
-      markers: [],
-      showToolbar: true,
-      sheet: false,
-      selectedDistrict: {},
-      lastClickLayer: '',
-      yearSelected: 2017,
+      center: [32.245329, -89.862671],
+      originalCenter: [32.245329, -89.862671],
+      zoom: 7,
+      timeout: 0,
+      menu: 0,
+      yearStep: 0,
+      markerOptions: { permanent: true },
       dataSetSelected: 'grade',
+      districts1516,
+      schools1516,
+      lastClickLayer: '',
+      districts1617,
+      schools1617,
+      yearSelected: 0,
       dataSets: [
         {
-          text: 'Accountability Grade',
+          name: 'Accountability grade',
+          description: 'this is a description',
           value: 'grade'
         },
-        { text: 'Math Proficiency', value: 'MP' }
+        {
+          name: 'Math proficiency',
+          description: 'this is a description',
+          value: 'MP'
+        }
       ],
-      center: [32.29642, -89.736328],
-      originalCenter: [32.29642, -89.736328],
-      zoom: 7,
-      drawer: false
+      years: ['2014/15', '2015/16'],
+      markers: [],
+      districtSelected: false,
+      selectedDistrict: null,
+      mapOptions: { zoomControl: false },
+      standardTiles: 'http://{s}.tile.osm.org/{z}/{x}/{y}.png',
+      lightTiles:
+        'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'
     }
   },
-  // async fetch({ store, params, route }) {
-  //   await store.dispatch('msrc/callGeoData')
-  // },
   computed: {
-    // ...mapGetters({ geo: 'msrc/getGeoData' }),
-    features() {
-      if (this.yearSelected === 2017) return this.districts2017
-      if (this.yearSelected === 2018) return this.districts2018
-      return this.districts2017
+    districts() {
+      if (this.yearSelected === 0) return this.districts1516
+      if (this.yearSelected === 1) return this.districts1617
+      return this.districts1516
+    },
+    schools() {
+      if (this.yearSelected === 0) return this.schools1516
+      if (this.yearSelected === 1) return this.schools1617
+      return this.schools1516
+    },
+    selectedYear() {
+      switch (this.yearSelected) {
+        case 0:
+          return '2015/2016'
+        case 1:
+          return '2016/2017'
+        default:
+          return '2015/2016'
+      }
     },
     options() {
       return {
@@ -208,73 +378,68 @@ export default {
             // eslint-disable-next-line vue/no-side-effects-in-computed-properties
             this.selectedDistrict = feature.properties
             // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-            this.sheet = true
             this.getMarkers(layer)
           }
           // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-          this.lastClickLayer = layer._leaflet_id
+          this.districtSelected = true
           // eslint-disable-next-line vue/no-side-effects-in-computed-properties
           this.selectedDistrict = feature.properties
-          this.map.fitBounds(layer.getBounds())
-          this.getMarkers(layer)
-          this.$refs.geojson.mapObject.setStyle(this.styleShadow)
           // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+          this.lastClickLayer = layer._leaflet_id
           layer.setStyle({ fillColor: 'white', fillOpacity: 0 })
-          // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-          this.sheet = true
+          this.map.fitBounds(layer.getBounds().pad(0.035))
+          this.getMarkers(layer)
         })
-        layer.on('mouseover', () => {})
-        layer.on('mouseout', () => {})
-      }
-    },
-    styleShadow() {
-      return {
-        color: '#263238',
-        opacity: 0.7,
-        weight: 1,
-        fillColor: '#263238',
-        fillOpacity: 0.7
       }
     },
     styleFunction() {
       return feature => {
-        // let fillColor
-        // const fid = feature.properties.FID_12
-        // if (this.yearSelected === 2017) {
-        //   if (this.dataSetSelected === 'grade') {
-        //     if (fid <= 25) fillColor = '#f7feae'
-        //     else if (fid <= 50) fillColor = '#7ccba2'
-        //     else if (fid <= 75) fillColor = '#46aea0'
-        //     else if (fid <= 100) fillColor = '#00718b'
-        //     else fillColor = '#045275'
-        //   } else if (this.dataSetSelected === 'MP') {
-        //     if (fid <= 25) fillColor = '#46aea0'
-        //     else if (fid <= 50) fillColor = '#00718b'
-        //     else if (fid <= 75) fillColor = '#f7feae'
-        //     else if (fid <= 100) fillColor = '#045275'
-        //     else fillColor = '#7ccba2'
-        //   }
-        // } else if (this.yearSelected === 2018) {
-        //   if (this.dataSetSelected === 'grade') {
-        //     if (fid <= 25) fillColor = '#f3e79b'
-        //     else if (fid <= 50) fillColor = '#eb7f86'
-        //     else if (fid <= 75) fillColor = '#46aea0'
-        //     else if (fid <= 100) fillColor = '#00718b'
-        //     else fillColor = '#5c53a5'
-        //   } else if (this.dataSetSelected === 'MP') {
-        //     if (fid <= 25) fillColor = '#5c53a5'
-        //     else if (fid <= 50) fillColor = '#00718b'
-        //     else if (fid <= 75) fillColor = '#46aea0'
-        //     else if (fid <= 100) fillColor = '#eb7f86'
-        //     else fillColor = '#f3e79b'
-        //   }
-        // }
+        let fillColor
+        const id = feature.properties.GEOID
+        if (this.yearSelected === 0) {
+          if (this.dataSetSelected === 'grade') {
+            if (id <= 2800200) fillColor = '#f7feae'
+            else if (id <= 2803600) fillColor = '#7ccba2'
+            else if (id <= 2804700) fillColor = '#46aea0'
+            else if (id <= 2805990) fillColor = '#00718b'
+            else fillColor = '#045275'
+          } else if (this.dataSetSelected === 'MP') {
+            if (id <= 2800200) fillColor = '#46aea0'
+            else if (id <= 2803600) fillColor = '#00718b'
+            else if (id <= 2804700) fillColor = '#f7feae'
+            else if (id <= 2805990) fillColor = '#045275'
+            else fillColor = '#7ccba2'
+          }
+        } else if (this.yearSelected === 1) {
+          if (this.dataSetSelected === 'grade') {
+            if (id <= 2800200) fillColor = '#f3e79b'
+            else if (id <= 2803600) fillColor = '#eb7f86'
+            else if (id <= 2804700) fillColor = '#46aea0'
+            else if (id <= 2805990) fillColor = '#00718b'
+            else fillColor = '#5c53a5'
+          } else if (this.dataSetSelected === 'MP') {
+            if (id <= 2800200) fillColor = '#5c53a5'
+            else if (id <= 2803600) fillColor = '#00718b'
+            else if (id <= 2804700) fillColor = '#46aea0'
+            else if (id <= 2805990) fillColor = '#eb7f86'
+            else fillColor = '#f3e79b'
+          }
+        }
         return {
-          color: '#999',
-          weight: 2,
-          fillColor: '#999',
+          color: fillColor,
+          weight: 1,
+          fillColor: fillColor,
           fillOpacity: 0.4
         }
+      }
+    },
+    selectedStyle() {
+      return {
+        color: '#ccc',
+        opacity: 0.7,
+        weight: 1,
+        fillColor: '#ccc',
+        fillOpacity: 0.7
       }
     }
   },
@@ -283,71 +448,41 @@ export default {
       this.map = this.$refs.map.mapObject
       // this.map.dragging.disable()
       this.map.setMinZoom(7).setMaxZoom(17)
-      this.map.setMaxBounds(this.map.getBounds())
-      // axios
-      //   .all([
-      //     // 'https://cdn.jsdelivr.net/gh/davidbkay/mississippi-education-geojson@v0.0.1/districts-mississippi.geojson'
-      //     axios.get(
-      //       'https://opendata.arcgis.com/datasets/1cbc6a683147445da9dab4681f776b04_0.geojson?where=UPPER(STATEFP)%20like%20%27%2528%25%27'
-      //     ),
-      //     axios.get(
-      //       'https://nces.ed.gov/opengis/rest/services/K12_School_Locations/EDGE_GEOCODE_PUBLICSCH_1516/MapServer/0/query?where=UPPER(LSTATE)%20like%20%27%25MS%25%27&outFields=*&outSR=4326&f=json'
-      //     )
-      //   ])
-      //   .then(
-      //     axios.spread((districts, schools) => {
-      //       // eslint-disable-next-line no-console
-      //       console.log('districts: ', districts.data)
-      //       this.districts = districts.data
-      //       // eslint-disable-next-line no-console
-      //       console.log('schools', schools)
-      //       this.schools = schools.data.features
-      //     })
-      //   )
-      // .then(response => {
-      // eslint-disable-next-line no-console
-      //   console.log('geojson response: ', response.data)
-      //   this.selected = response.data
-      //   this.districts = response.data
-      //   this.loading = false
-      // })
     })
   },
   methods: {
+    handleDataSelect(data) {
+      this.menu = 0
+      this.dataSetSelected = data
+    },
+    resetMap() {
+      this.map.flyTo(this.originalCenter, 7, { duration: 0.2 })
+      this.markers = []
+      this.menu = 0
+      this.districtSelected = false
+      this.$refs.geojson.mapObject.setStyle(this.styleFunction)
+    },
+    handleMarkerClick(e) {
+      this.map.setView(e.target.getLatLng(), this.zoom, { animate: true })
+    },
     getMarkers(layer) {
-      const features = this.schools.filter(
+      const features = this.schools1516.filter(
         item =>
           item.attributes.NCESSCH.substr(0, 7) ===
           layer.feature.properties.GEOID
       )
       this.markers = features
-    },
-    handleYearSelection(year) {
-      this.yearSelected = year
-      this.handleSelectionChange()
-    },
-    handleSelectionChange() {
-      this.$refs.geojson.mapObject.setStyle(this.styleFunction)
-    },
-    resetMap() {
-      this.map.flyTo(this.originalCenter, 7, { duration: 0.2 })
-      this.lastClickLayer = null
-      this.sheet = false
-      this.markers = []
-      this.$refs.geojson.mapObject.setStyle(this.styleFunction)
-    },
-    handleZoom() {
-      if (this.map.getZoom() < 8 && this.lastClickLayer) {
-        this.$refs.geojson.mapObject.setStyle(this.styleFunction)
-        this.sheet = false
-      }
     }
   }
 }
 </script>
 
 <style>
-.mapOver {
+.overlayContainer {
   z-index: 999;
+}
+.mapContainer {
+  z-index: 0;
+  height: calc(100vh - 64px);
 }
 </style>
